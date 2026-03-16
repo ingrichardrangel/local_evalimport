@@ -37,7 +37,6 @@ namespace local_evalimport\privacy;
  */
 class provider implements
     \core_privacy\local\metadata\null_provider {
-
     /**
      * Returns the reason why this plugin stores no personal data.
      *
