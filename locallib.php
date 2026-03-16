@@ -28,48 +28,91 @@ require_once($CFG->dirroot . '/grade/grading/lib.php');
 require_once($CFG->libdir . '/gradelib.php');
 
 /**
- * Returns importable activities from the course.
+ * Returns importable activities from the course respecting
+ * visibility, group restrictions and grading capabilities.
  *
  * @param stdClass $course The course object.
  * @return array
  * @package local_evalimport
  */
 function local_evalimport_get_importable_activities(stdClass $course): array {
-    global $DB;
+    global $DB, $USER;
 
     $options = [];
+
     $modinfo = get_fast_modinfo($course);
 
     foreach ($modinfo->get_cms() as $cminfo) {
+
+        // Skip invisible modules.
         if (!$cminfo->uservisible) {
             continue;
         }
 
+        // Only allow supported modules.
         if (!in_array($cminfo->modname, ['assign', 'forum'], true)) {
             continue;
         }
 
         $context = context_module::instance($cminfo->id);
 
+        // User must be able to manage grading forms.
         if (!has_capability('moodle/grade:managegradingforms', $context)) {
             continue;
         }
 
+        // Respect group mode restrictions.
+        if ($cminfo->groupmode != NOGROUPS) {
+
+            // Groups allowed in this activity.
+            $allowedgroups = groups_get_activity_allowed_groups($cminfo);
+
+            // If the activity uses groups and the user does not belong
+            // to any allowed group, hide it.
+            if (!empty($allowedgroups)) {
+
+                $usergroups = groups_get_all_groups(
+                    $course->id,
+                    $USER->id,
+                    $cminfo->groupingid
+                );
+
+                if (empty($usergroups)) {
+                    continue;
+                }
+
+                $intersection = array_intersect_key($allowedgroups, $usergroups);
+
+                if (empty($intersection)) {
+                    continue;
+                }
+            }
+        }
+
+        // Check that the activity has a valid grade item.
         $gradeitem = $DB->get_record('grade_items', [
-            'itemmodule' => $cminfo->modname,
+            'itemmodule'   => $cminfo->modname,
             'iteminstance' => $cminfo->instance,
-            'itemnumber' => 0,
+            'itemnumber'   => 0,
         ]);
 
         if (!$gradeitem) {
             continue;
         }
 
+        // Only numeric grading supported.
         if ((int)$gradeitem->gradetype !== GRADE_TYPE_VALUE) {
             continue;
         }
 
-        $label = '[' . $cminfo->modplural . '] ' . format_string($cminfo->name);
+        // Create a readable label including the section name.
+        $sectioninfo = $modinfo->get_section_info($cminfo->sectionnum);
+        $sectionname = get_section_name($course, $sectioninfo);
+
+        $label = '[' . $cminfo->modplural . '] ' .
+                 format_string($cminfo->name) .
+                 ' (' . $sectionname . ')';
+
         $options[$cminfo->id] = $label;
     }
 
