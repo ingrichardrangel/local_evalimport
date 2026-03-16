@@ -43,7 +43,6 @@ function local_evalimport_get_importable_activities(stdClass $course): array {
     $modinfo = get_fast_modinfo($course);
 
     foreach ($modinfo->get_cms() as $cminfo) {
-
         // Skip invisible modules.
         if (!$cminfo->uservisible) {
             continue;
@@ -63,14 +62,12 @@ function local_evalimport_get_importable_activities(stdClass $course): array {
 
         // Respect group mode restrictions.
         if ($cminfo->groupmode != NOGROUPS) {
-
             // Groups allowed in this activity.
             $allowedgroups = groups_get_activity_allowed_groups($cminfo);
 
             // If the activity uses groups and the user does not belong
             // to any allowed group, hide it.
             if (!empty($allowedgroups)) {
-
                 $usergroups = groups_get_all_groups(
                     $course->id,
                     $USER->id,
