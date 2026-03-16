@@ -25,8 +25,6 @@
 
 namespace local_evalimport\privacy;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Privacy provider implementation for local_evalimport.
  *
